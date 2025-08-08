@@ -1,0 +1,242 @@
+import React, { useState, useEffect } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, ScatterPlot, Scatter, ResponsiveContainer } from 'recharts';
+import Papa from 'papaparse';
+
+const HeartDiseaseAnalysis = () => {
+  const [data, setData] = useState([]);
+  const [insights, setInsights] = useState({});
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const csvData = await window.fs.readFile('Heart Disease dataset.csv', { encoding: 'utf8' });
+        const parsed = Papa.parse(csvData, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true
+        });
+        
+        const cleanedData = parsed.data.map(row => ({
+          age: row.age || 0,
+          sex: row.sex || 0,
+          chestPainType: row['chest pain type'] || 0,
+          restingBP: row['resting bp s'] || 0,
+          cholesterol: row.cholesterol || 0,
+          fastingBS: row['fasting blood sugar'] || 0,
+          restingECG: row['resting ecg'] || 0,
+          maxHeartRate: row['max heart rate'] || 0,
+          exerciseAngina: row['exercise angina'] || 0,
+          oldpeak: row.oldpeak || 0,
+          stSlope: row['ST slope'] || 0,
+          target: row.target || 0
+        }));
+
+        setData(cleanedData);
+        calculateInsights(cleanedData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  const calculateInsights = (dataset) => {
+    if (!dataset || dataset.length === 0) return;
+
+    const totalRecords = dataset.length;
+    const heartDiseaseCount = dataset.filter(row => row.target === 1).length;
+    const avgAge = dataset.reduce((sum, row) => sum + row.age, 0) / totalRecords;
+    const maleCount = dataset.filter(row => row.sex === 1).length;
+    const avgCholesterol = dataset.filter(row => row.cholesterol > 0).reduce((sum, row) => sum + row.cholesterol, 0) / dataset.filter(row => row.cholesterol > 0).length;
+    const avgMaxHR = dataset.reduce((sum, row) => sum + row.maxHeartRate, 0) / totalRecords;
+
+    // Age distribution
+    const ageGroups = {
+      '20-30': 0, '31-40': 0, '41-50': 0, '51-60': 0, '61-70': 0, '71-80': 0
+    };
+    dataset.forEach(row => {
+      if (row.age <= 30) ageGroups['20-30']++;
+      else if (row.age <= 40) ageGroups['31-40']++;
+      else if (row.age <= 50) ageGroups['41-50']++;
+      else if (row.age <= 60) ageGroups['51-60']++;
+      else if (row.age <= 70) ageGroups['61-70']++;
+      else ageGroups['71-80']++;
+    });
+
+    // Chest pain types
+    const chestPainTypes = {};
+    dataset.forEach(row => {
+      const type = row.chestPainType;
+      chestPainTypes[type] = (chestPainTypes[type] || 0) + 1;
+    });
+
+    setInsights({
+      totalRecords,
+      heartDiseaseCount,
+      heartDiseaseRate: ((heartDiseaseCount / totalRecords) * 100).toFixed(1),
+      avgAge: avgAge.toFixed(1),
+      maleCount,
+      malePercentage: ((maleCount / totalRecords) * 100).toFixed(1),
+      avgCholesterol: avgCholesterol.toFixed(1),
+      avgMaxHR: avgMaxHR.toFixed(1),
+      ageGroups,
+      chestPainTypes
+    });
+  };
+
+  const ageGroupData = Object.entries(insights.ageGroups || {}).map(([group, count]) => ({
+    group,
+    count
+  }));
+
+  const genderData = [
+    { name: 'Male', value: insights.maleCount || 0 },
+    { name: 'Female', value: (insights.totalRecords || 0) - (insights.maleCount || 0) }
+  ];
+
+  const targetData = [
+    { name: 'No Heart Disease', value: (insights.totalRecords || 0) - (insights.heartDiseaseCount || 0) },
+    { name: 'Heart Disease', value: insights.heartDiseaseCount || 0 }
+  ];
+
+  const chestPainData = Object.entries(insights.chestPainTypes || {}).map(([type, count]) => ({
+    type: `Type ${type}`,
+    count
+  }));
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+
+  if (!data.length) {
+    return <div className="p-8">Loading data...</div>;
+  }
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">Heart Disease Dataset Analysis</h1>
+      
+      {/* Key Statistics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-blue-100 p-4 rounded-lg text-center">
+          <h3 className="text-lg font-semibold text-blue-800">Total Records</h3>
+          <p className="text-2xl font-bold text-blue-600">{insights.totalRecords}</p>
+        </div>
+        <div className="bg-red-100 p-4 rounded-lg text-center">
+          <h3 className="text-lg font-semibold text-red-800">Heart Disease Rate</h3>
+          <p className="text-2xl font-bold text-red-600">{insights.heartDiseaseRate}%</p>
+        </div>
+        <div className="bg-green-100 p-4 rounded-lg text-center">
+          <h3 className="text-lg font-semibold text-green-800">Average Age</h3>
+          <p className="text-2xl font-bold text-green-600">{insights.avgAge} years</p>
+        </div>
+        <div className="bg-purple-100 p-4 rounded-lg text-center">
+          <h3 className="text-lg font-semibold text-purple-800">Male %</h3>
+          <p className="text-2xl font-bold text-purple-600">{insights.malePercentage}%</p>
+        </div>
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        {/* Age Distribution */}
+        <div className="bg-white p-6 rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4 text-gray-700">Age Distribution</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={ageGroupData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="group" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="count" fill="#8884d8" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Gender Distribution */}
+        <div className="bg-white p-6 rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4 text-gray-700">Gender Distribution</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={genderData}
+                cx="50%"
+                cy="50%"
+                outerRadius={100}
+                dataKey="value"
+                label={({name, percent}) => `${name} ${(percent * 100).toFixed(1)}%`}
+              >
+                {genderData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Heart Disease Distribution */}
+        <div className="bg-white p-6 rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4 text-gray-700">Heart Disease Distribution</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={targetData}
+                cx="50%"
+                cy="50%"
+                outerRadius={100}
+                dataKey="value"
+                label={({name, percent}) => `${name} ${(percent * 100).toFixed(1)}%`}
+              >
+                {targetData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={index === 0 ? '#00C49F' : '#FF8042'} />
+                ))}
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Chest Pain Types */}
+        <div className="bg-white p-6 rounded-lg shadow-lg">
+          <h3 className="text-xl font-semibold mb-4 text-gray-700">Chest Pain Types</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chestPainData}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="type" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="count" fill="#82ca9d" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Key Insights */}
+      <div className="mt-8 bg-gray-50 p-6 rounded-lg">
+        <h3 className="text-xl font-semibold mb-4 text-gray-700">Key Insights</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          <div>
+            <h4 className="font-semibold text-gray-600 mb-2">Demographics:</h4>
+            <ul className="space-y-1 text-gray-600">
+              <li>• Dataset contains {insights.totalRecords} patient records</li>
+              <li>• {insights.malePercentage}% are male patients</li>
+              <li>• Average patient age is {insights.avgAge} years</li>
+              <li>• Most patients are in the 51-60 age group</li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold text-gray-600 mb-2">Clinical:</h4>
+            <ul className="space-y-1 text-gray-600">
+              <li>• {insights.heartDiseaseRate}% have heart disease</li>
+              <li>• Average cholesterol: {insights.avgCholesterol} mg/dl</li>
+              <li>• Average max heart rate: {insights.avgMaxHR} bpm</li>
+              <li>• Multiple chest pain types represented</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default HeartDiseaseAnalysis;
