@@ -3,12 +3,15 @@
 Here are the quick insights about your heart disease dataset:
 
 
-**Dataset Overview:**
+
+## **Dataset Overview:**
 
 Size: 1,025 patient records with 12 features
 Target: Binary classification (heart disease presence/absence)
 
-Key Demographics:
+
+
+## **Key Demographics:**
 
 Age Range: 20-77 years (average ~54 years)
 Gender Split: ~68% male, ~32% female
